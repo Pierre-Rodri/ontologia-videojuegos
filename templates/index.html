@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Motor de Búsqueda SPARQL</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; font-size: 16px; }
+    pre { background: #f4f4f4; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Motor de Búsqueda SPARQL</h1>
+  <form id="sparqlForm">
+    <label for="query">Consulta SPARQL:</label><br>
+    <textarea id="query" name="query">
+SELECT ?s WHERE { ?s ?p ?o } LIMIT 5
+    </textarea><br>
+    <button type="submit">Ejecutar</button>
+  </form>
+
+  <h2>Resultados:</h2>
+  <pre id="result"></pre>
+
+  <script>
+    const form = document.getElementById("sparqlForm");
+    const resultBox = document.getElementById("result");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const query = document.getElementById("query").value;
+
+      const res = await fetch("/sparql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query })
+      });
+
+      const data = await res.json();
+      resultBox.textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
