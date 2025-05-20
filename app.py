@@ -1,12 +1,16 @@
 from flask import Flask, request, jsonify, render_template
 from rdflib import Graph
-import requests  # ✅ necesario para redirigir la consulta a DBpedia
+import requests  # necesario para redirigir la consulta a DBpedia
 
 app = Flask(__name__)
 
 # Cargar tu ontología local
 g = Graph()
-g.parse("ontologia/oficial.rdf", format="xml")
+try:
+    g.parse("ontologia/oficial.rdf", format="xml")
+except Exception as e:
+    print(f"Error al cargar la ontología RDF: {e}")
+    g = None
 
 # Página principal que carga el HTML
 @app.route("/")
@@ -17,13 +21,13 @@ def home():
 @app.route("/sparql", methods=["POST"])
 def ejecutar_sparql():
     data = request.get_json()
-    query = data.get("query")
+    query = data.get('query')
 
     if not query:
         return jsonify({"error": "Falta el campo 'query'"}), 400
 
     try:
-        if "SERVICE <http://dbpedia.org/sparql>" in query:
+        if "dbr:" in query or "dbo:" in query:
             response = requests.get(
                 "http://dbpedia.org/sparql",
                 params={"query": query, "format": "application/sparql-results+json"}
@@ -55,6 +59,15 @@ def ejecutar_sparql():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+#manejador de errores
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template("error.html", mensaje="Error interno del servidor."), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_template("error.html", mensaje="Página no encontrada."), 404
 
 if __name__ == "__main__":
     app.run(debug=True)

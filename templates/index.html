@@ -15,16 +15,15 @@
   <form id="sparqlForm">
     <label for="query">Consulta SPARQL:</label><br>
     <textarea id="query" name="query">
-PREFIX dbo: <http://dbpedia.org/ontology/>
-PREFIX dbr: <http://dbpedia.org/resource/>
+      PREFIX dbo: <http://dbpedia.org/ontology/>
+      PREFIX dbr: <http://dbpedia.org/resource/>
 
-SELECT ?developer ?releaseDate
-WHERE {
-  SERVICE <http://dbpedia.org/sparql> {
-    dbr:Minecraft dbo:developer ?developer ;
-                  dbo:releaseDate ?releaseDate .
-  }
-}
+      SELECT ?developer ?releaseDate
+      WHERE {
+          dbr:Minecraft dbo:developer ?developer ;
+                        dbo:releaseDate ?releaseDate .
+      }
+
     </textarea><br>
     <button type="submit">Ejecutar</button>
   </form>
