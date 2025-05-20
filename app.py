@@ -58,4 +58,3 @@ def ejecutar_sparql():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
