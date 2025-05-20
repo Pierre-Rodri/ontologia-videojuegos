@@ -49,7 +49,7 @@ def ejecutar_sparql():
                 }), 500
 
 
-        # 🔍 Consulta local a tu RDF
+        # Consulta local a tu RDF
         resultados = g.query(query)
         respuesta = [
             {str(var): str(fila[var]) for var in fila.labels}
