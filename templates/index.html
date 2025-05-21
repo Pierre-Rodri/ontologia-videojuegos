@@ -30,15 +30,27 @@
 
   <h2>Resultados:</h2>
   <pre id="result"></pre>
+  <div id="loader" style="display: none; margin-top: 1rem; height: 5px; background: #007bff; animation: load 2s linear infinite;"></div>
+  <style>
+  @keyframes load {
+    0% { width: 0%; }
+    50% { width: 80%; }
+    100% { width: 100%; }
+  }
+  </style>
 
   <script>
     const form = document.getElementById("sparqlForm");
     const resultBox = document.getElementById("result");
+    const loader = document.getElementById("loader");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const query = document.getElementById("query").value;
+      loader.style.display = "block";
+      resultBox.textContent = "";
 
+      try {
       const res = await fetch("/sparql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -46,7 +58,18 @@
       });
 
       const data = await res.json();
-      resultBox.textContent = JSON.stringify(data, null, 2);
+
+    if (data.error) {
+      resultBox.textContent = "Error: " + data.error;
+    } else {
+      resultBox.textContent =
+        JSON.stringify(data, null, 2);
+    }
+  } catch (err) {
+    resultBox.textContent = "Error inesperado al contactar el servidor.";
+  } finally {
+    loader.style.display = "none";
+  }
     });
   </script>
 </body>

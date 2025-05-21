@@ -4,7 +4,7 @@ import requests  # necesario para redirigir la consulta a DBpedia
 
 app = Flask(__name__)
 
-# Cargar tu ontología local
+#ontología local
 g = Graph()
 try:
     g.parse("ontologia/oficial.rdf", format="xml")
@@ -12,7 +12,7 @@ except Exception as e:
     print(f"Error al cargar la ontología RDF: {e}")
     g = None
 
-# Página principal que carga el HTML
+#página principal que carga el HTML
 @app.route("/")
 def home():
     return render_template("index.html")
