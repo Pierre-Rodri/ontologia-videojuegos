@@ -24,7 +24,7 @@ Se implementa una API y una interfaz web usando Flask, junto con herramientas de
    cd ontologia-videojuegos
 2. Crea un entorno virtual:
    ```bash
-   python - m venv venv
+   python -m venv venv
 3. Instala las dependencias:
    ```bash
    pip install flask
