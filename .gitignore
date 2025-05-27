@@ -1,0 +1,12 @@
+#Entorno de Python
+__pycache__
+*.pyc
+/.venv
+.env/
+
+#Carpetas vscode
+.vscode
+
+#Archivos de configuracion local
+*.log
+*.tmp

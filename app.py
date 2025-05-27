@@ -1,10 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from rdflib import Graph
-import requests  # necesario para redirigir la consulta a DBpedia
+import requests
 
 app = Flask(__name__)
-
-#ontología local
 g = Graph()
 
 try:
@@ -14,12 +12,10 @@ except Exception as e:
     print(f"Error al cargar la ontología RDF: {e}")
     g = None
 
-#página principal que carga el HTML
 @app.route("/")
 def home():
     return render_template("index.html")
 
-# Ruta para ejecutar consultas SPARQL
 @app.route("/sparql", methods=["POST"])
 def ejecutar_sparql():
     data = request.get_json()
@@ -37,12 +33,13 @@ def ejecutar_sparql():
 
             if response.status_code != 200:
                 return jsonify({
-                    "error": f"DBpedia respondió con un error {response.status_code}",
+                    "error": f"DBpedia respondió con código {response.status_code}",
                     "detalle": response.text
                 }), 500
-            
+
             return jsonify(response.json())
 
+        # Ontología local
         if g is None:
             return jsonify({"error": "La ontología no está cargada"}), 500
 
@@ -56,7 +53,6 @@ def ejecutar_sparql():
     except Exception as e:
         return jsonify({"error": "Error al ejecutar la consulta", "detalle": str(e)}), 500
 
-#manejador de errores
 @app.errorhandler(500)
 def internal_error(error):
     return render_template("error.html", mensaje="Error interno del servidor."), 500

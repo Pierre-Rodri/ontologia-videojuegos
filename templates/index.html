@@ -7,30 +7,54 @@
     body { font-family: sans-serif; margin: 2rem; }
     textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
     button { margin-top: 1rem; padding: 0.5rem 1rem; font-size: 16px; }
-    pre { background: #f4f4f4; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
+    pre, table { background: #f4f4f4; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background-color: #e0e0e0; }
+    #loader { display: none; margin-top: 1rem; height: 5px; background: #007bff; animation: load 2s linear infinite; }
   </style>
 </head>
 <body>
   <h1>Motor de Búsqueda SPARQL</h1>
+
+  <!-- <details>
+    <summary><strong>Prefijos recomendados</strong></summary>
+    <pre>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+    </pre>
+  </details> -->
+
+
   <form id="sparqlForm">
+    <label for="endpoint">Selecciona la fuente de datos:</label>
+    <select id="endpoint">
+      <option value="local">Ontología Local</option>
+      <option value="dbpedia">DBpedia</option>
+    </select>
+
     <label for="query">Consulta SPARQL:</label><br>
     <textarea id="query" name="query">
-      PREFIX dbo: <http://dbpedia.org/ontology/>
-      PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbr: <http://dbpedia.org/resource/>
 
-      SELECT ?developer ?releaseDate
-      WHERE {
-          dbr:Minecraft dbo:developer ?developer ;
-                        dbo:releaseDate ?releaseDate .
-      }
-
+SELECT ?developer ?releaseDate
+WHERE {
+    dbr:Minecraft dbo:developer ?developer ;
+                  dbo:releaseDate ?releaseDate .
+}
     </textarea><br>
     <button type="submit">Ejecutar</button>
   </form>
 
   <h2>Resultados:</h2>
   <pre id="result"></pre>
-  <div id="loader" style="display: none; margin-top: 1rem; height: 5px; background: #007bff; animation: load 2s linear infinite;"></div>
+  <div id="loader"></div>  
+
   <style>
   @keyframes load {
     0% { width: 0%; }
@@ -47,6 +71,12 @@
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const query = document.getElementById("query").value;
+
+      if (!query) {
+        alert("Por favor, escribe una consulta SPARQL.");
+        return;
+      }
+
       loader.style.display = "block";
       resultBox.textContent = "";
 
@@ -59,17 +89,46 @@
 
       const data = await res.json();
 
-    if (data.error) {
-      resultBox.textContent = "Error: " + data.error;
-    } else {
-      resultBox.textContent =
-        JSON.stringify(data, null, 2);
-    }
-  } catch (err) {
-    resultBox.textContent = "Error inesperado al contactar el servidor.";
-  } finally {
-    loader.style.display = "none";
-  }
+    if (data.resultados || (data.results && data.results.bindings)) {
+          const bindings = data.resultados || data.results.bindings;
+          if (bindings.length > 0) {
+            const table = document.createElement("table");
+            const thead = document.createElement("thead");
+            const headerRow = document.createElement("tr");
+
+            Object.keys(bindings[0]).forEach(key => {
+              const th = document.createElement("th");
+              th.textContent = key;
+              headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement("tbody");
+            bindings.forEach(row => {
+              const tr = document.createElement("tr");
+              Object.values(row).forEach(cell => {
+                const td = document.createElement("td");
+                td.textContent = typeof cell === "object" ? cell.value : cell;
+                tr.appendChild(td);
+              });
+              tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            resultBox.appendChild(table);
+          } else {
+            resultBox.textContent = "No se encontraron resultados.";
+          }
+        } else if (data.error) {
+          resultBox.textContent = "Error: " + data.error;
+        } else {
+          resultBox.textContent = JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        resultBox.textContent = "Error inesperado al contactar el servidor.";
+      } finally {
+        loader.style.display = "none";
+      }
     });
   </script>
 </body>
