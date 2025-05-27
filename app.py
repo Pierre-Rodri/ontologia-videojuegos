@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from rdflib import Graph
 import requests
+import re
 
 app = Flask(__name__)
 g = Graph()
@@ -28,30 +29,27 @@ def ejecutar_sparql():
     
     try:
         if endpoint == "dbpedia":
-            #variable de idiomas
-            vars_con_idioma = ["label", "comment", "title", "description", "name", "abstract"]
+            propiedades_idioma = [
+                "rdfs:label", "rdfs:comment", "dbo:abstract", "foaf:name", "skos:prefLabel"
+            ]
 
-            #add filtros de idioma automáticamente si no hay filtros existentes
-            if "WHERE {" in query and "lang(" not in query:
-                filtros = ""
-                for var in vars_con_idioma:
-                    if f"?{var}" in query:
-                        filtros += f'  FILTER(langMatches(lang(?{var}), "{lang}")) .\n'
-                if filtros:
-                    query = query.replace("WHERE {", f"WHERE {{\n{filtros}")
+            #filtro inteligente a la consulta    
+            query = inyectar_filtros_idioma(query, lang, propiedades_idioma)
 
             #Para verificar la integridad de la consulta generada
+            print("Datos recibidos del frontend:", data)
+            print("Endpoint:", endpoint)
+            print("Idioma:", lang)
             print("\n--- Consulta SPARQL enviada a DBpedia ---")
             print(f"Idioma solicitado: {lang}")
             print(query)
             print("------------------------------------------\n")
 
-            #enviamos la consulta a DBpedia
             response = requests.get(
                 "http://dbpedia.org/sparql",
                 params={"query": query, "format": "application/sparql-results+json"}
             )
-
+            
             if response.status_code != 200:
                 return jsonify({
                     "error": f"DBpedia respondió con un error {response.status_code}",
@@ -74,6 +72,32 @@ def ejecutar_sparql():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+#buscamos si la consulta contiene esas propiedades.
+def extraer_vars_lingüisticas(consulta, propiedades):
+    vars_detectadas = set()
+    for prop in propiedades:
+        # busca patrones como: <algo> prop ?var .
+        patron = rf"{re.escape(prop)}\s+\?(\w+)"
+        matches = re.findall(patron, consulta)
+        vars_detectadas.update(matches)
+    return vars_detectadas
+
+#Insertar los filtros FILTER(langMatches(...)) para cada variable detectada
+def inyectar_filtros_idioma(consulta, lang, propiedades):
+    # No insertar si ya hay filtros de idioma
+    if "lang(" in consulta:
+        return consulta
+
+    vars_linguisticas = extraer_vars_lingüisticas(consulta, propiedades)
+    if not vars_linguisticas:
+        return consulta  # No hay variables a filtrar
+
+    # Construimos bloque de filtros
+    filtros = "".join(
+        f"  FILTER(langMatches(lang(?{var}), \"{lang}\")) .\n" for var in vars_linguisticas
+    )
+
+    return consulta.replace("WHERE {", f"WHERE {{\n{filtros}")
 
 
 @app.errorhandler(500)
