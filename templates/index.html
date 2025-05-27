@@ -17,19 +17,6 @@
 <body>
   <h1>Motor de Búsqueda SPARQL</h1>
 
-  <!-- <details>
-    <summary><strong>Prefijos recomendados</strong></summary>
-    <pre>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX dbo: <http://dbpedia.org/ontology/>
-PREFIX dbr: <http://dbpedia.org/resource/>
-    </pre>
-  </details> -->
-
-
   <form id="sparqlForm">
     <label for="endpoint">Selecciona la fuente de datos:</label>
     <select id="endpoint">
@@ -71,6 +58,7 @@ WHERE {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const query = document.getElementById("query").value;
+      const endpoint = document.getElementById("endpoint").value; 
 
       if (!query) {
         alert("Por favor, escribe una consulta SPARQL.");
@@ -81,11 +69,11 @@ WHERE {
       resultBox.textContent = "";
 
       try {
-      const res = await fetch("/sparql", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
-      });
+        const res = await fetch("/sparql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, endpoint }) 
+        });
 
       const data = await res.json();
 
