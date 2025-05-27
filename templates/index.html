@@ -155,6 +155,7 @@ WHERE {
       e.preventDefault();
       const query = document.getElementById("query").value;
       const endpoint = document.getElementById("endpoint").value;
+      const idioma = document.getElementById("lang").value;
 
       if (!query.trim()) {
         alert(textos[lang.value]["alert_sparql"]);
@@ -168,7 +169,7 @@ WHERE {
         const res = await fetch("/sparql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, endpoint })
+          body: JSON.stringify({ query, endpoint, lang: idioma })
         });
 
         const data = await res.json();
@@ -184,6 +185,7 @@ WHERE {
       e.preventDefault();
       const keyword = document.getElementById("keyword").value.trim();
       const endpoint = document.getElementById("keywordSource").value;
+      const idioma = document.getElementById("lang").value;
 
       if (!keyword) {
         alert(textos[lang.value]["alert_keyword"]);
@@ -205,7 +207,6 @@ WHERE {
             ?game a dbo:VideoGame ;
                   rdfs:label ?title ;
                   rdfs:comment ?description .
-            FILTER (lang(?title) = "en" && lang(?description) = "en")
             FILTER (
               CONTAINS(LCASE(?title), LCASE("${keyword}")) ||
               CONTAINS(LCASE(?description), LCASE("${keyword}"))
@@ -232,7 +233,7 @@ WHERE {
         const res = await fetch("/sparql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, endpoint })
+          body: JSON.stringify({ query, endpoint, lang: idioma })
         });
 
         const data = await res.json();
@@ -250,6 +251,13 @@ WHERE {
       const bindings = data.resultados || (data.results && data.results.bindings);
 
       container.innerHTML = "";
+
+      if (lang.value === "es" && bindings.length > 0) {
+        const advertencia = document.createElement("p");
+        advertencia.style.color = "#cc6600";
+        advertencia.textContent = "⚠️ Algunas partes del contenido están en inglés porque no existen en español.";
+        resultBox.prepend(advertencia);
+      }
 
       if (bindings && bindings.length > 0) {
         title.textContent = `Resultados: ${bindings.length} encontrados`;

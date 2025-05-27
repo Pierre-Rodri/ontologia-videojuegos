@@ -20,22 +20,44 @@ def home():
 def ejecutar_sparql():
     data = request.get_json()
     query = data.get('query')
-    endpoint = data.get('endpoint', 'local') 
+    endpoint = data.get('endpoint', 'local')
+    lang = data.get('lang', 'en') 
 
     if not query:
         return jsonify({"error": "Falta el campo 'query'"}), 400
-
+    
     try:
         if endpoint == "dbpedia":
+            #variable de idiomas
+            vars_con_idioma = ["label", "comment", "title", "description", "name"]
+
+            #add filtros de idioma automáticamente si no hay filtros existentes
+            if "WHERE {" in query and "lang(" not in query:
+                filtros = ""
+                for var in vars_con_idioma:
+                    if f"?{var}" in query:
+                        filtros += f'  FILTER(langMatches(lang(?{var}), "{lang}")) .\n'
+                if filtros:
+                    query = query.replace("WHERE {", f"WHERE {{\n{filtros}")
+
+            #Para verificar la integridad de la consulta generada
+            print("\n--- Consulta SPARQL enviada a DBpedia ---")
+            print(f"Idioma solicitado: {lang}")
+            print(query)
+            print("------------------------------------------\n")
+
+            #enviamos la consulta a DBpedia
             response = requests.get(
                 "http://dbpedia.org/sparql",
                 params={"query": query, "format": "application/sparql-results+json"}
             )
+
             if response.status_code != 200:
                 return jsonify({
                     "error": f"DBpedia respondió con un error {response.status_code}",
                     "detalle": response.text
                 }), 500
+
             return jsonify(response.json())
 
         elif endpoint == "local":
@@ -51,6 +73,7 @@ def ejecutar_sparql():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.errorhandler(500)
