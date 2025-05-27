@@ -113,7 +113,7 @@
       </select>
 
       <label id="labelConsulta" for="query">Consulta SPARQL:</label>
-      <textarea id="query" name="query">
+      <textarea id="query" name="query" style="height: 200px; resize: none; overflow: auto; font-family: monospace; font-size: 14px; width: 100%;">
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbr: <http://dbpedia.org/resource/>
 
@@ -142,7 +142,10 @@ WHERE {
   </div>
 
   <div id="loader"></div>
-  <div id="result"></div>
+  <div id="resultContainer" style="max-width: 900px; margin: auto;">
+    <h2 id="resultTitle" style="display: none; color: #005f8d; font-size: 1.5rem; margin-bottom: 1rem;">Resultados:</h2>
+    <div id="result" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+  </div>
 
   <script>
     const resultBox = document.getElementById("result");
@@ -242,8 +245,16 @@ WHERE {
     });
 
     function mostrarResultados(data) {
+      const title = document.getElementById("resultTitle");
+      const container = document.getElementById("result");
       const bindings = data.resultados || (data.results && data.results.bindings);
+
+      container.innerHTML = "";
+
       if (bindings && bindings.length > 0) {
+        title.textContent = `Resultados: ${bindings.length} encontrados`;
+        title.style.display = "block";
+
         const table = document.createElement("table");
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
@@ -268,8 +279,12 @@ WHERE {
         });
         table.appendChild(tbody);
         resultBox.appendChild(table);
+        resultBox.scrollIntoView({ behavior: "smooth" });
       } else {
-        resultBox.textContent = textos[lang.value]["no_results"];
+        title.textContent = "Resultados:";
+        title.style.display = "block";
+        container.textContent = textos[lang.value]["no_results"];
+        title.scrollIntoView({ behavior: "smooth" });
       }
     }
 
