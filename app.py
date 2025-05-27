@@ -6,8 +6,10 @@ app = Flask(__name__)
 
 #ontología local
 g = Graph()
+
 try:
     g.parse("ontologia/oficial.rdf", format="xml")
+    print("Ontología cargada correctamente.")
 except Exception as e:
     print(f"Error al cargar la ontología RDF: {e}")
     g = None
@@ -38,27 +40,21 @@ def ejecutar_sparql():
                     "error": f"DBpedia respondió con un error {response.status_code}",
                     "detalle": response.text
                 }), 500
+            
+            return jsonify(response.json())
 
-            try:
-                return jsonify(response.json())
-            except Exception as e:
-                return jsonify({
-                    "error": f"No se pudo decodificar la respuesta JSON de DBpedia",
-                    "detalle": str(e),
-                    "respuesta": response.text[:200]  # mostrar primeros caracteres por si es HTML
-                }), 500
+        if g is None:
+            return jsonify({"error": "La ontología no está cargada"}), 500
 
-
-        # Consulta local a tu RDF
         resultados = g.query(query)
         respuesta = [
             {str(var): str(fila[var]) for var in fila.labels}
             for fila in resultados
         ]
-        return jsonify(respuesta)
+        return jsonify({"resultados": respuesta, "total": len(respuesta)})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error al ejecutar la consulta", "detalle": str(e)}), 500
 
 #manejador de errores
 @app.errorhandler(500)
