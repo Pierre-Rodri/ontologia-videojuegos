@@ -2,30 +2,105 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Motor de Búsqueda SPARQL</title>
+  <title>Buscador Semántico de Videojuegos</title>
   <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
-    button { margin-top: 1rem; padding: 0.5rem 1rem; font-size: 16px; }
-    pre, table { background: #f4f4f4; padding: 1rem; margin-top: 1rem; white-space: pre-wrap; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-    th { background-color: #e0e0e0; }
-    #loader { display: none; margin-top: 1rem; height: 5px; background: #007bff; animation: load 2s linear infinite; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background-color: #f0f4f8;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      color: #005f8d;
+    }
+    textarea, input[type="text"], select {
+      width: 100%;
+      font-size: 14px;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #005f8d;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      font-size: 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #003f5c;
+    }
+    #loader {
+      display: none;
+      height: 5px;
+      background: #007bff;
+      animation: load 2s linear infinite;
+      margin: 1rem auto;
+      max-width: 900px;
+    }
+    @keyframes load {
+      0% { width: 0%; }
+      50% { width: 80%; }
+      100% { width: 100%; }
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.6rem;
+      text-align: left;
+    }
+    th {
+      background-color: #e0e0e0;
+    }
+    #result {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
-  <h1>Motor de Búsqueda SPARQL</h1>
+  <h1>Buscador Semántico de Videojuegos</h1>
 
-  <form id="sparqlForm">
-    <label for="endpoint">Selecciona la fuente de datos:</label>
-    <select id="endpoint">
-      <option value="local">Ontología Local</option>
-      <option value="dbpedia">DBpedia</option>
-    </select>
+  <div class="card">
+    <h2>Consulta SPARQL avanzada</h2>
+    <form id="sparqlForm">
+      <label for="endpoint">Selecciona la fuente de datos:</label>
+      <select id="endpoint">
+        <option value="local">Ontología Local</option>
+        <option value="dbpedia">DBpedia</option>
+      </select>
 
-    <label for="query">Consulta SPARQL:</label><br>
-    <textarea id="query" name="query">
+      <label for="query">Consulta SPARQL:</label>
+      <textarea id="query" name="query">
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbr: <http://dbpedia.org/resource/>
 
@@ -34,163 +109,127 @@ WHERE {
     dbr:Minecraft dbo:developer ?developer ;
                   dbo:releaseDate ?releaseDate .
 }
-    </textarea><br>
-    <button type="submit">Ejecutar</button>
-  </form>
+      </textarea>
+      <button type="submit">Ejecutar</button>
+    </form>
+  </div>
 
-  <form id="keywordForm">
-    <label for="keyword">Buscar videojuegos por palabra clave:</label>
-    <input type="text" id="keyword" name="keyword" placeholder="Ej. Mario, shooter, aventura">
-    <select id="keywordSource">
-      <option value="dbpedia">DBpedia</option>
-      <option value="local">Ontología Local</option>
-    </select>
-    <button type="submit">Buscar</button>
-  </form>
+  <div class="card">
+    <h2>Búsqueda por palabra clave</h2>
+    <form id="keywordForm">
+      <label for="keyword">Ingresa una palabra clave:</label>
+      <input type="text" id="keyword" name="keyword" placeholder="Ej. Mario, shooter, aventura">
+      <label for="keywordSource">Selecciona la fuente:</label>
+      <select id="keywordSource">
+        <option value="dbpedia">DBpedia</option>
+        <option value="local">Ontología Local</option>
+      </select>
+      <button type="submit">Buscar</button>
+    </form>
+  </div>
 
-  <h2>Resultados:</h2>
-  <pre id="result"></pre>
-  <div id="loader"></div>  
-
-  <style>
-  @keyframes load {
-    0% { width: 0%; }
-    50% { width: 80%; }
-    100% { width: 100%; }
-  }
-  </style>
+  <div id="loader"></div>
+  <div id="result"></div>
 
   <script>
-    const form = document.getElementById("sparqlForm");
     const resultBox = document.getElementById("result");
     const loader = document.getElementById("loader");
 
-    form.addEventListener("submit", async (e) => {
+    document.getElementById("sparqlForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const query = document.getElementById("query").value;
-      const endpoint = document.getElementById("endpoint").value; 
+      const endpoint = document.getElementById("endpoint").value;
 
-      if (!query) {
+      if (!query.trim()) {
         alert("Por favor, escribe una consulta SPARQL.");
         return;
       }
 
       loader.style.display = "block";
-      resultBox.textContent = "";
+      resultBox.innerHTML = "";
 
       try {
         const res = await fetch("/sparql", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, endpoint }) 
+          body: JSON.stringify({ query, endpoint })
         });
 
-      const data = await res.json();
-
-    if (data.resultados || (data.results && data.results.bindings)) {
-          const bindings = data.resultados || data.results.bindings;
-          if (bindings.length > 0) {
-            const table = document.createElement("table");
-            const thead = document.createElement("thead");
-            const headerRow = document.createElement("tr");
-
-            Object.keys(bindings[0]).forEach(key => {
-              const th = document.createElement("th");
-              th.textContent = key;
-              headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-
-            const tbody = document.createElement("tbody");
-            bindings.forEach(row => {
-              const tr = document.createElement("tr");
-              Object.values(row).forEach(cell => {
-                const td = document.createElement("td");
-                td.textContent = typeof cell === "object" ? cell.value : cell;
-                tr.appendChild(td);
-              });
-              tbody.appendChild(tr);
-            });
-            table.appendChild(tbody);
-            resultBox.appendChild(table);
-          } else {
-            resultBox.textContent = "No se encontraron resultados.";
-          }
-        } else if (data.error) {
-          resultBox.textContent = "Error: " + data.error;
-        } else {
-          resultBox.textContent = JSON.stringify(data, null, 2);
-        }
-      } catch (err) {
+        const data = await res.json();
+        mostrarResultados(data);
+      } catch {
         resultBox.textContent = "Error inesperado al contactar el servidor.";
       } finally {
         loader.style.display = "none";
       }
     });
-  </script>
 
-  <script>
-  const keywordForm = document.getElementById("keywordForm");
+    document.getElementById("keywordForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const keyword = document.getElementById("keyword").value.trim();
+      const endpoint = document.getElementById("keywordSource").value;
 
-  keywordForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const keyword = document.getElementById("keyword").value.trim();
-    const endpoint = document.getElementById("keywordSource").value;
+      if (!keyword) {
+        alert("Por favor, escribe una palabra clave.");
+        return;
+      }
 
-    if (!keyword) {
-      alert("Por favor, escribe una palabra clave.");
-      return;
-    }
+      loader.style.display = "block";
+      resultBox.innerHTML = "";
 
-    loader.style.display = "block";
-    resultBox.innerHTML = "";
+      let query = "";
 
-    let query = "";
+      if (endpoint === "dbpedia") {
+        query = `
+          PREFIX dbo: <http://dbpedia.org/ontology/>
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-    if (endpoint === "dbpedia") {
-      query = `
-        PREFIX dbo: <http://dbpedia.org/ontology/>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          SELECT ?game ?title ?description
+          WHERE {
+            ?game a dbo:VideoGame ;
+                  rdfs:label ?title ;
+                  rdfs:comment ?description .
+            FILTER (lang(?title) = "en" && lang(?description) = "en")
+            FILTER (
+              CONTAINS(LCASE(?title), LCASE("${keyword}")) ||
+              CONTAINS(LCASE(?description), LCASE("${keyword}"))
+            )
+          }
+          LIMIT 20
+        `;
+      } else {
+        query = `
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          PREFIX : <http://www.semanticweb.org/juaco/ontologies/2024/0/videojuegos#>
 
-        SELECT ?game ?title ?description
-        WHERE {
-          ?game a dbo:VideoGame ;
-                rdfs:label ?title ;
-                rdfs:comment ?description .
-          FILTER (lang(?title) = "en" && lang(?description) = "en")
-          FILTER (
-            CONTAINS(LCASE(?title), LCASE("${keyword}")) ||
-            CONTAINS(LCASE(?description), LCASE("${keyword}"))
-          )
-        }
-        LIMIT 20
-      `;
-    } else {
-      query = `
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-        PREFIX : <http://www.semanticweb.org/juaco/ontologies/2024/0/videojuegos#>
+          SELECT ?videojuego ?label
+          WHERE {
+            ?videojuego a :Videojuego ;
+                        rdfs:label ?label .
+            FILTER (CONTAINS(LCASE(?label), LCASE("${keyword}")))
+          }
+          LIMIT 20
+        `;
+      }
 
-        SELECT ?videojuego ?label
-        WHERE {
-          ?videojuego a :Videojuego ;
-                      rdfs:label ?label .
-          FILTER (CONTAINS(LCASE(?label), LCASE("${keyword}")))
-        }
-        LIMIT 20
-      `;
-    }
+      try {
+        const res = await fetch("/sparql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, endpoint })
+        });
 
-    try {
-      const res = await fetch("/sparql", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, endpoint })
-      });
+        const data = await res.json();
+        mostrarResultados(data);
+      } catch {
+        resultBox.textContent = "Error inesperado al contactar el servidor.";
+      } finally {
+        loader.style.display = "none";
+      }
+    });
 
-      const data = await res.json();
+    function mostrarResultados(data) {
       const bindings = data.resultados || (data.results && data.results.bindings);
-
       if (bindings && bindings.length > 0) {
         const table = document.createElement("table");
         const thead = document.createElement("thead");
@@ -219,14 +258,7 @@ WHERE {
       } else {
         resultBox.textContent = "No se encontraron resultados.";
       }
-    } catch (err) {
-      resultBox.textContent = "Error inesperado al contactar el servidor.";
-    } finally {
-      loader.style.display = "none";
     }
-  });
   </script>
-
 </body>
 </html>
-
