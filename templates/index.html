@@ -115,13 +115,23 @@
       <label id="labelConsulta" for="query">Consulta SPARQL:</label>
       <textarea id="query" name="query" style="height: 200px; resize: none; overflow: auto; font-family: monospace; font-size: 14px; width: 100%;">
 PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbp: <http://dbpedia.org/property/>
 PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT ?developer ?releaseDate
+SELECT ?label ?fechaLanzamiento ?desarrollador ?genero ?plataforma ?abstract
 WHERE {
-    dbr:Minecraft dbo:developer ?developer ;
-                  dbo:releaseDate ?releaseDate .
+  dbr:The_Last_of_Us rdfs:label ?label ;
+                     dbo:releaseDate ?fechaLanzamiento ;
+                     dbo:developer ?desarrollador ;
+                     dbo:genre ?genero ;
+                     dbo:abstract ?abstract  ;
+                     dbo:computingPlatform ?plataforma .
+  
+  FILTER (lang(?titulo) = "es")
+  FILTER (lang(?resumen) = "es")
 }
+LIMIT 10
       </textarea>
       <button type="submit" id="btnEjecutar">Ejecutar</button>
     </form>
@@ -142,9 +152,9 @@ WHERE {
   </div>
 
   <div id="loader"></div>
-  <div id="resultContainer" style="max-width: 900px; margin: auto;">
+  <div id="resultContainer" style="max-width: 1500px; margin: auto;">
     <h2 id="resultTitle" style="display: none; color: #005f8d; font-size: 1.5rem; margin-bottom: 1rem;">Resultados:</h2>
-    <div id="result" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+    <div id="result" style="max-width: 1500px; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
   </div>
 
   <script>

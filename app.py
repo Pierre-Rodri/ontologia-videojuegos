@@ -29,7 +29,7 @@ def ejecutar_sparql():
     try:
         if endpoint == "dbpedia":
             #variable de idiomas
-            vars_con_idioma = ["label", "comment", "title", "description", "name"]
+            vars_con_idioma = ["label", "comment", "title", "description", "name", "abstract"]
 
             #add filtros de idioma automáticamente si no hay filtros existentes
             if "WHERE {" in query and "lang(" not in query:
