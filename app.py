@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify, render_template
 from rdflib import Graph
+from rdflib.plugins.sparql.parser import parseQuery
 import requests
 import re
+import openai
+import os
 
 app = Flask(__name__)
 g = Graph()
 
+#"OPENAI_API_KEY"se reemplaza por la key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+#cargar la ontología RDF local
 try:
     g.parse("ontologia/oficial.rdf", format="xml")
     print("Ontología cargada correctamente.")
@@ -22,55 +29,103 @@ def ejecutar_sparql():
     data = request.get_json()
     query = data.get('query')
     endpoint = data.get('endpoint', 'local')
-    lang = data.get('lang', 'en') 
+    lang = data.get('lang', 'en')
 
     if not query:
         return jsonify({"error": "Falta el campo 'query'"}), 400
     
+    #validar consulta SPARQL antes de ejecutar
+    if not validar_sparql(query):
+        return jsonify({"error": "Consulta SPARQL inválida. Revise la sintaxis."}), 400
+
+    return ejecutar_sparql_aux(query, endpoint, lang)
+
+#ruta para preguntas naturales
+@app.route("/preguntar", methods=["POST"])
+def procesar_pregunta():
+    data = request.get_json()
+    pregunta = data.get("pregunta")
+    endpoint = data.get("endpoint", "local")
+    lang = data.get("lang", "es")
+
+    if not pregunta:
+        return jsonify({"error": "No se recibió ninguna pregunta"}), 400
+
     try:
-        if endpoint == "dbpedia":
-            propiedades_idioma = [
-                "rdfs:label", "rdfs:comment", "dbo:abstract", "foaf:name", "skos:prefLabel"
-            ]
+        #usamos la API de OpenAI para transformar la pregunta en una consulta sparql
+        sparql = convertir_pregunta_a_sparql(pregunta, endpoint, lang)
 
-            #filtro inteligente a la consulta    
-            query = inyectar_filtros_idioma(query, lang, propiedades_idioma)
+        #validar la consulta generada
+        if not sparql.lower().strip().startswith("select") or not validar_sparql(sparql):
+            return jsonify({"error": "La consulta SPARQL generada no es válida."}), 500
 
-            #Para verificar la integridad de la consulta generada
-            print("Datos recibidos del frontend:", data)
-            print("Endpoint:", endpoint)
-            print("Idioma:", lang)
-            print("\n--- Consulta SPARQL enviada a DBpedia ---")
-            print(f"Idioma solicitado: {lang}")
-            print(query)
-            print("------------------------------------------\n")
-
-            response = requests.get(
-                "http://dbpedia.org/sparql",
-                params={"query": query, "format": "application/sparql-results+json"}
-            )
-            
-            if response.status_code != 200:
-                return jsonify({
-                    "error": f"DBpedia respondió con un error {response.status_code}",
-                    "detalle": response.text
-                }), 500
-
-            return jsonify(response.json())
-
-        elif endpoint == "local":
-            resultados = g.query(query)
-            respuesta = [
-                {str(var): str(fila[var]) for var in fila.labels}
-                for fila in resultados
-            ]
-            return jsonify({"resultados": respuesta, "total": len(respuesta)})
-
-        else:
-            return jsonify({"error": f"Fuente desconocida: {endpoint}"}), 400
+        return ejecutar_sparql_aux(sparql, endpoint, lang)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+#función que ejecuta la consulta ya preparada, controlando el idioma
+def ejecutar_sparql_aux(query, endpoint, lang):
+    if endpoint == "dbpedia":
+        propiedades_idioma = [
+            "rdfs:label", "rdfs:comment", "dbo:abstract", "foaf:name", "skos:prefLabel"
+        ]
+        query = inyectar_filtros_idioma(query, lang, propiedades_idioma)
+
+        #Para verificar la integridad de la consulta generada
+        print("Endpoint:", endpoint)
+        print("Idioma:", lang)
+        print("\n--- Consulta SPARQL enviada a DBpedia ---")
+        print(f"Idioma solicitado: {lang}")
+        print(query)
+        print("------------------------------------------\n")
+
+        response = requests.get(
+            "https://dbpedia.org/sparql",  # HTTPS recomendado
+            params={"query": query, "format": "application/sparql-results+json"}
+        )
+
+        if response.status_code != 200:
+            return jsonify({
+                "error": f"DBpedia respondió con error {response.status_code}",
+                "detalle": response.text
+            }), 500
+
+        return jsonify(response.json())
+
+    elif endpoint == "local":
+        resultados = g.query(query)
+        respuesta = [{str(var): str(fila[var]) for var in fila.labels} for fila in resultados]
+        return jsonify({"resultados": respuesta, "total": len(respuesta)})
+
+    else:
+        return jsonify({"error": f"Fuente desconocida: {endpoint}"}), 400
+    
+#funcion que usa la API de OpenAI para generar una consulta, desde una pregunta
+def convertir_pregunta_a_sparql(pregunta, endpoint, lang):
+    modelo = "gpt-4o-mini"
+    prefijo = "DBpedia" if endpoint == "dbpedia" else "la ontología local RDF"
+
+    system_prompt = f"""
+Eres un asistente experto en ontologías y SPARQL. Tu tarea es convertir preguntas en lenguaje natural en consultas SPARQL.
+Utiliza los prefijos correctos para {prefijo}. NO expliques nada. Devuelve SOLO la consulta SPARQL.
+"""
+
+    user_prompt = f"Pregunta: {pregunta}\nIdioma: {lang}\nFuente: {endpoint}"
+
+    try:
+        respuesta = openai.ChatCompletion.create(
+            model=modelo,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+    except openai.error.OpenAIError as e:
+        raise Exception(f"Error API OpenAI: {str(e)}")
+    contenido = respuesta['choices'][0]['message']['content']
+    return contenido.strip()
+
 
 #buscamos si la consulta contiene esas propiedades.
 def extraer_vars_lingüisticas(consulta, propiedades):
@@ -99,6 +154,13 @@ def inyectar_filtros_idioma(consulta, lang, propiedades):
 
     return consulta.replace("WHERE {", f"WHERE {{\n{filtros}")
 
+def validar_sparql(query):
+    try:
+        parseQuery(query)
+        return True
+    except Exception as e:
+        print(f"Error de sintaxis SPARQL: {e}")
+        return False
 
 @app.errorhandler(500)
 def internal_error(error):

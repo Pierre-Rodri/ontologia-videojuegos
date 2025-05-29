@@ -98,6 +98,8 @@
     <select id="lang" style="margin-left: 1rem;">
       <option value="es">Español</option>
       <option value="en">English</option>
+      <option value="fr">Français</option>
+      <option value="ja">日本語</option>
     </select>
   </div>
 
@@ -106,10 +108,10 @@
   <div class="card">
     <h2 id="tituloSparql">Consulta SPARQL avanzada</h2>
     <form id="sparqlForm">
-      <label id="labelFuente" for="endpoint">Selecciona la fuente de datos:</label>
+      <label id="labelFuente" for="endpoint">Selecciona la fuente:</label>
       <select id="endpoint">
-        <option value="local">Ontología Local</option>
         <option value="dbpedia">DBpedia</option>
+        <option value="local">Ontología Local</option>
       </select>
 
       <label id="labelConsulta" for="query">Consulta SPARQL:</label>
@@ -145,6 +147,22 @@ LIMIT 10
         <option value="local">Ontología Local</option>
       </select>
       <button type="submit" id="btnBuscar">Buscar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 id="tituloPregunta">Pregunta en lenguaje natural</h2>
+    <form id="nlpForm">
+      <label id="labelPregunta" for="pregunta">Escribe tu pregunta:</label>
+      <input type="text" id="pregunta" placeholder="¿Quién desarrolló Minecraft?">
+      
+      <label id="labelFuenteNLP" for="fuenteNLP">Selecciona la fuente:</label>
+      <select id="fuenteNLP">
+        <option value="dbpedia">DBpedia</option>
+        <option value="local">Ontología Local</option>
+      </select>
+
+      <button type="submit" id="btnPregunta">Buscar</button>
     </form>
   </div>
 
@@ -252,6 +270,36 @@ LIMIT 10
       }
     });
 
+    document.getElementById("nlpForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pregunta = document.getElementById("pregunta").value.trim();
+      const endpoint = document.getElementById("fuenteNLP").value;
+      const idioma = document.getElementById("lang").value;
+
+      if (!pregunta) {
+        alert("Por favor, escribe una pregunta.");
+        return;
+      }
+
+      loader.style.display = "block";
+      resultBox.innerHTML = "";
+
+      try {
+        const res = await fetch("/preguntar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pregunta, endpoint, lang: idioma })
+        });
+
+        const data = await res.json();
+        mostrarResultados(data);
+      } catch {
+        resultBox.textContent = "Error al contactar el servidor.";
+      } finally {
+        loader.style.display = "none";
+      }
+    });
+
     function mostrarResultados(data) {
       const title = document.getElementById("resultTitle");
       const container = document.getElementById("result");
@@ -259,11 +307,34 @@ LIMIT 10
 
       container.innerHTML = "";
 
-      if (lang.value === "es" && bindings.length > 0) {
-        const advertencia = document.createElement("p");
-        advertencia.style.color = "#cc6600";
-        advertencia.textContent = "⚠️ Algunas partes del contenido están en inglés porque no existen en español.";
-        resultBox.prepend(advertencia);
+      if (bindings && bindings.length > 0) {
+        // Comprobar si al menos un resultado tiene un idioma distinto al seleccionado
+        let idiomaSeleccionado = lang.value;
+        let contenidoOtroIdioma = false;
+        bindings.forEach(row => {
+          for (const key in row) {
+            const valor = row[key];
+            // Si es objeto con "xml:lang" y el idioma no coincide
+            if (valor && valor['xml:lang'] && valor['xml:lang'] !== idiomaSeleccionado) {
+              contenidoOtroIdioma = true;
+            }
+          }
+        });
+
+        if (contenidoOtroIdioma) {
+          const advertencia = document.createElement("p");
+          advertencia.style.color = "#cc6600";
+          if (idiomaSeleccionado === "es") {
+            advertencia.textContent = "⚠️ Algunas partes del contenido están en otro idioma.";
+          } else if (idiomaSeleccionado === "en") {
+            advertencia.textContent = "⚠️ Some content parts are in a different language.";
+          } else if (idiomaSeleccionado === "fr") {
+            advertencia.textContent = "⚠️ Certaines parties du contenu sont dans une autre langue.";
+          } else if (idiomaSeleccionado === "ja") {
+            advertencia.textContent = "⚠️ コンテンツの一部は別の言語で表示されています。";
+          }
+          resultBox.prepend(advertencia);
+        }
       }
 
       if (bindings && bindings.length > 0) {
@@ -318,7 +389,11 @@ LIMIT 10
         "tituloPalabra": "Búsqueda por palabra clave",
         "labelPalabra": "Ingresa una palabra clave:",
         "labelFuente2": "Selecciona la fuente:",
-        "btnBuscar": "Buscar"
+        "btnBuscar": "Buscar",
+        "tituloPregunta": "Pregunta en lenguaje natural",
+        "labelPregunta": "Escribe tu pregunta:",
+        "fuenteNLP": "Selecciona la fuente:",
+        "btnPregunta": "Buscar",
       },
       en: {
         "alert_sparql": "Please enter a SPARQL query.",
@@ -333,7 +408,51 @@ LIMIT 10
         "tituloPalabra": "Keyword Search",
         "labelPalabra": "Enter a keyword:",
         "labelFuente2": "Select source:",
-        "btnBuscar": "Search"
+        "btnBuscar": "Search",
+        "tituloPregunta": "Natural Language Question",
+        "labelPregunta": "Write your question:",
+        "fuenteNLP": "Select source:",
+        "btnPregunta": "Search",
+      },
+
+      fr: {
+        "alert_sparql": "Veuillez saisir une requête SPARQL.",
+        "alert_keyword": "Veuillez saisir un mot-clé.",
+        "error_server": "Erreur inattendue lors de la connexion au serveur.",
+        "no_results": "Aucun résultat trouvé.",
+        "titulo": "Recherche Sémantique de Jeux Vidéo",
+        "tituloSparql": "Requête SPARQL Avancée",
+        "labelFuente": "Sélectionnez la source de données :",
+        "labelConsulta": "Requête SPARQL :",
+        "btnEjecutar": "Exécuter",
+        "tituloPalabra": "Recherche par mot-clé",
+        "labelPalabra": "Entrez un mot-clé :",
+        "labelFuente2": "Sélectionnez la source :",
+        "btnBuscar": "Rechercher",
+        "tituloPregunta": "Question en langage naturel",
+        "labelPregunta": "Écrivez votre question :",
+        "fuenteNLP": "Sélectionnez la source :",
+        "btnPregunta": "Rechercher",
+      },
+
+      ja: {
+        "alert_sparql": "SPARQLクエリを入力してください。",
+        "alert_keyword": "キーワードを入力してください。",
+        "error_server": "サーバーへの接続中に予期しないエラーが発生しました。",
+        "no_results": "結果が見つかりませんでした。",
+        "titulo": "セマンティックゲーム検索",
+        "tituloSparql": "高度なSPARQLクエリ",
+        "labelFuente": "データソースを選択：",
+        "labelConsulta": "SPARQLクエリ：",
+        "btnEjecutar": "実行",
+        "tituloPalabra": "キーワード検索",
+        "labelPalabra": "キーワードを入力：",
+        "labelFuente2": "ソースを選択：",
+        "btnBuscar": "検索",
+        "tituloPregunta": "自然言語の質問",
+        "labelPregunta": "質問を入力してください：",
+        "fuenteNLP": "ソースを選択：",
+        "btnPregunta": "検索",
       }
     };
 
@@ -348,6 +467,10 @@ LIMIT 10
       document.getElementById("labelPalabra").textContent = t.labelPalabra;
       document.getElementById("labelFuente2").textContent = t.labelFuente2;
       document.getElementById("btnBuscar").textContent = t.btnBuscar;
+      document.getElementById("tituloPregunta").textContent = t.tituloPregunta;
+      document.getElementById("labelPregunta").textContent = t.labelPregunta;
+      document.getElementById("labelFuenteNLP").textContent = t.fuenteNLP;
+      document.getElementById("btnPregunta").textContent = t.btnPregunta;
     });
   </script>
 </body>
