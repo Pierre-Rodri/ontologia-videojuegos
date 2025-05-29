@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Buscador Semántico de Videojuegos</title>
   <style>
     body {
@@ -90,6 +90,70 @@
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+
+    /* Estilos para los botones colapsables */
+    .collapsible {
+      background-color: #e6f0f5; /* tono suave azul claro */
+      color: #005f8d;
+      cursor: pointer;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 2px solid #005f8d;
+      text-align: left;
+      font-size: 1.25rem;
+      font-weight: 600;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      user-select: none;
+    }
+
+    .collapsible:hover, .collapsible[aria-expanded="true"] {
+      background-color: #005f8d;
+      color: white;
+      border-color: #004466;
+    }
+
+
+    .collapsible:hover h2,
+    .collapsible[aria-expanded="true"] h2 {
+      color: white;
+    }
+
+    .collapsible:focus {
+      outline: 3px solid #007bff;
+      outline-offset: 2px;
+    }
+
+    .collapsible:after {
+      content: '\25BC'; /*lecha hacia abajo */
+      font-size: 18px;
+      transition: transform 0.3s ease;
+      color: inherit;
+    }
+
+    .collapsible[aria-expanded="true"]:after {
+      transform: rotate(180deg); /*flecha hacia arriba */
+    }
+
+    .content {
+      padding: 1rem 1.5rem;
+      border-left: 2px solid #005f8d;
+      border-right: 2px solid #005f8d;
+      border-bottom: 2px solid #005f8d;
+      border-radius: 0 0 8px 8px;
+      background-color: #f9fbfc;
+      box-shadow: inset 0 4px 6px rgb(0 0 0 / 0.05);
+      display: none;
+      animation: fadeInContent 0.35s ease forwards;
+    }
+
+    @keyframes fadeInContent {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -106,16 +170,35 @@
   <h1 id="titulo">Buscador Semántico de Videojuegos</h1>
 
   <div class="card">
-    <h2 id="tituloSparql">Consulta SPARQL avanzada</h2>
-    <form id="sparqlForm">
-      <label id="labelFuente" for="endpoint">Selecciona la fuente:</label>
-      <select id="endpoint">
+    <h2 id="tituloPregunta">Pregunta en lenguaje natural</h2>
+    <form id="nlpForm">
+      <label id="labelPregunta" for="pregunta">Escribe tu pregunta:</label>
+      <input type="text" id="pregunta" placeholder="¿Quién desarrolló Minecraft?">
+
+      <label id="labelFuenteNLP" for="fuenteNLP">Selecciona la fuente:</label>
+      <select id="fuenteNLP">
         <option value="dbpedia">DBpedia</option>
         <option value="local">Ontología Local</option>
       </select>
 
-      <label id="labelConsulta" for="query">Consulta SPARQL:</label>
-      <textarea id="query" name="query" style="height: 200px; resize: none; overflow: auto; font-family: monospace; font-size: 14px; width: 100%;">
+      <button type="submit" id="btnPregunta">Buscar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <button class="collapsible" aria-expanded="false" aria-controls="sparqlContent" id="sparqlToggle">
+      <h2 id="tituloSparql">Consulta SPARQL avanzada</h2>
+    </button>
+    <div id="sparqlContent" class="content">
+      <form id="sparqlForm">
+        <label id="labelFuente" for="endpoint">Selecciona la fuente:</label>
+        <select id="endpoint">
+          <option value="dbpedia">DBpedia</option>
+          <option value="local">Ontología Local</option>
+        </select>
+
+        <label id="labelConsulta" for="query">Consulta SPARQL:</label>
+        <textarea id="query" name="query" style="height: 200px; resize: none; overflow: auto; font-family: monospace; font-size: 14px; width: 100%;">
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dbp: <http://dbpedia.org/property/>
 PREFIX dbr: <http://dbpedia.org/resource/>
@@ -131,39 +214,28 @@ WHERE {
                      dbo:computingPlatform ?plataforma .
 }
 LIMIT 10
-      </textarea>
-      <button type="submit" id="btnEjecutar">Ejecutar</button>
-    </form>
+        </textarea>
+        <button type="submit" id="btnEjecutar">Ejecutar</button>
+      </form>
+    </div>
   </div>
 
   <div class="card">
-    <h2 id="tituloPalabra">Búsqueda por palabra clave</h2>
-    <form id="keywordForm">
-      <label id="labelPalabra" for="keyword">Ingresa una palabra clave:</label>
-      <input type="text" id="keyword" name="keyword" placeholder="Ej. Mario, shooter, aventura">
-      <label id="labelFuente2" for="keywordSource">Selecciona la fuente:</label>
-      <select id="keywordSource">
-        <option value="dbpedia">DBpedia</option>
-        <option value="local">Ontología Local</option>
-      </select>
-      <button type="submit" id="btnBuscar">Buscar</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <h2 id="tituloPregunta">Pregunta en lenguaje natural</h2>
-    <form id="nlpForm">
-      <label id="labelPregunta" for="pregunta">Escribe tu pregunta:</label>
-      <input type="text" id="pregunta" placeholder="¿Quién desarrolló Minecraft?">
-      
-      <label id="labelFuenteNLP" for="fuenteNLP">Selecciona la fuente:</label>
-      <select id="fuenteNLP">
-        <option value="dbpedia">DBpedia</option>
-        <option value="local">Ontología Local</option>
-      </select>
-
-      <button type="submit" id="btnPregunta">Buscar</button>
-    </form>
+    <button class="collapsible" aria-expanded="false" aria-controls="keywordContent" id="keywordToggle">
+      <h2 id="tituloPalabra">Búsqueda por palabra clave</h2>
+    </button>
+    <div id="keywordContent" class="content">
+      <form id="keywordForm">
+        <label id="labelPalabra" for="keyword">Ingresa una palabra clave:</label>
+        <input type="text" id="keyword" name="keyword" placeholder="Ej. Mario, shooter, aventura">
+        <label id="labelFuente2" for="keywordSource">Selecciona la fuente:</label>
+        <select id="keywordSource">
+          <option value="dbpedia">DBpedia</option>
+          <option value="local">Ontología Local</option>
+        </select>
+        <button type="submit" id="btnBuscar">Buscar</button>
+      </form>
+    </div>
   </div>
 
   <div id="loader"></div>
@@ -175,6 +247,19 @@ LIMIT 10
   <script>
     const resultBox = document.getElementById("result");
     const loader = document.getElementById("loader");
+
+    // Función para alternar visibilidad de contenedores
+    document.querySelectorAll(".collapsible").forEach(button => {
+      button.addEventListener("click", () => {
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", !expanded);
+        const contentId = button.getAttribute("aria-controls");
+        const content = document.getElementById(contentId);
+        if (content) {
+          content.style.display = expanded ? "none" : "block";
+        }
+      });
+    });
 
     document.getElementById("sparqlForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -383,7 +468,7 @@ LIMIT 10
         "no_results": "No se encontraron resultados.",
         "titulo": "Buscador Semántico de Videojuegos",
         "tituloSparql": "Consulta SPARQL avanzada",
-        "labelFuente": "Selecciona la fuente de datos:",
+        "labelFuente": "Selecciona la fuente:",
         "labelConsulta": "Consulta SPARQL:",
         "btnEjecutar": "Ejecutar",
         "tituloPalabra": "Búsqueda por palabra clave",
@@ -402,7 +487,7 @@ LIMIT 10
         "no_results": "No results found.",
         "titulo": "Semantic Video Game Search",
         "tituloSparql": "Advanced SPARQL Query",
-        "labelFuente": "Select data source:",
+        "labelFuente": "Select source:",
         "labelConsulta": "SPARQL Query:",
         "btnEjecutar": "Execute",
         "tituloPalabra": "Keyword Search",
@@ -414,7 +499,6 @@ LIMIT 10
         "fuenteNLP": "Select source:",
         "btnPregunta": "Search",
       },
-
       fr: {
         "alert_sparql": "Veuillez saisir une requête SPARQL.",
         "alert_keyword": "Veuillez saisir un mot-clé.",
@@ -422,7 +506,7 @@ LIMIT 10
         "no_results": "Aucun résultat trouvé.",
         "titulo": "Recherche Sémantique de Jeux Vidéo",
         "tituloSparql": "Requête SPARQL Avancée",
-        "labelFuente": "Sélectionnez la source de données :",
+        "labelFuente": "Sélectionnez la source :",
         "labelConsulta": "Requête SPARQL :",
         "btnEjecutar": "Exécuter",
         "tituloPalabra": "Recherche par mot-clé",
@@ -432,9 +516,8 @@ LIMIT 10
         "tituloPregunta": "Question en langage naturel",
         "labelPregunta": "Écrivez votre question :",
         "fuenteNLP": "Sélectionnez la source :",
-        "btnPregunta": "Rechercher",
+        "btnPregunta": "Consulter",
       },
-
       ja: {
         "alert_sparql": "SPARQLクエリを入力してください。",
         "alert_keyword": "キーワードを入力してください。",
@@ -442,7 +525,7 @@ LIMIT 10
         "no_results": "結果が見つかりませんでした。",
         "titulo": "セマンティックゲーム検索",
         "tituloSparql": "高度なSPARQLクエリ",
-        "labelFuente": "データソースを選択：",
+        "labelFuente": "ソースを選択：",
         "labelConsulta": "SPARQLクエリ：",
         "btnEjecutar": "実行",
         "tituloPalabra": "キーワード検索",
@@ -452,7 +535,7 @@ LIMIT 10
         "tituloPregunta": "自然言語の質問",
         "labelPregunta": "質問を入力してください：",
         "fuenteNLP": "ソースを選択：",
-        "btnPregunta": "検索",
+        "btnPregunta": "問い合わせる",
       }
     };
 
