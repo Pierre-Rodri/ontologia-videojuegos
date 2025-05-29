@@ -34,3 +34,5 @@ Se implementa una API y una interfaz web usando Flask, junto con herramientas de
    ```bash
    py app.py
    
+
+En la seccion de la api key se debe poner una que tenga un plan de suscripción de openia para que este funcione 
