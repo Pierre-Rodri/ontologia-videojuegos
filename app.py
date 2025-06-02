@@ -92,7 +92,28 @@ def ejecutar_sparql_aux(query, endpoint, lang):
                 "detalle": response.text
             }), 500
 
-        return jsonify(response.json())
+        json_result = response.json()
+        bindings = json_result.get("results", {}).get("bindings", [])
+        procesados = []
+
+        for fila in bindings:
+            item = {}
+            for var, val in fila.items():
+                valor = val.get("value", "")
+                tipo = val.get("type", "")
+
+                if tipo == "uri":
+                    item[var] = valor.split("/")[-1].replace("_", " ")
+                elif tipo == "literal":
+                    item[var] = valor
+                else:
+                    item[var] = valor
+            procesados.append(item)
+
+        return jsonify({
+            "resultados": procesados,
+            "total": len(procesados)
+        })
 
     elif endpoint == "local":
         if g is None:
@@ -113,9 +134,13 @@ def convertir_pregunta_a_sparql(pregunta, endpoint, lang):
     prefijo = "DBpedia" if endpoint == "dbpedia" else "la ontología local RDF"
 
     system_prompt = f"""
-Eres un asistente experto en SPARQL. Tu tarea es convertir preguntas en lenguaje natural en consultas SPARQL.
-Utiliza los prefijos correctos para {prefijo}. 
-NO EXPLIQUES NADA. Devuelve SOLO la consulta SPARQL. No incluyas comentarios ni texto adicional.
+Eres un experto en ontologías y consultas SPARQL. Convierte preguntas en lenguaje natural en consultas SPARQL utilizando DBpedia como fuente si el endpoint es DBpedia.
+
+Reglas:
+1. Usa siempre los prefijos: dbo, dbr, rdfs.
+2. Incluye ?label con rdfs:label cuando devuelvas URIs.
+3. Agrega un filtro de idioma con FILTER(langMatches(lang(?label), "{lang}"))
+4. NO devuelvas texto adicional, SOLO la consulta SPARQL sin bloques ```sparql.
 """
 
     user_prompt = f"Pregunta: {pregunta}\nIdioma: {lang}\nFuente: {endpoint}"
