@@ -7,17 +7,23 @@ import re
 import openai
 import os
 
+#inicialización
 app = Flask(__name__)
 g = Graph()
 load_dotenv()
 
-#"OPENAI_API_KEY"se reemplaza por la key
+#configuración de API
 openai.api_key = os.getenv("API_key")
+client = openai.OpenAI(api_key=openai.api_key)
 
-#cargar la ontología RDF local
+if not openai.api_key:
+    raise ValueError("No se encontró la clave API de OpenAI. Verifica tu archivo .env")
+
+#cargar ontología local
 try:
     g.parse("ontologia/oficial.rdf", format="xml")
     print("Ontología cargada correctamente.")
+    print("API Key cargada:", openai.api_key[:8] + "...")
 except Exception as e:
     print(f"Error al cargar la ontología RDF: {e}")
     g = None
@@ -35,14 +41,12 @@ def ejecutar_sparql():
 
     if not query:
         return jsonify({"error": "Falta el campo 'query'"}), 400
-    
-    #validar consulta SPARQL antes de ejecutar
+
     if not validar_sparql(query):
         return jsonify({"error": "Consulta SPARQL inválida. Revise la sintaxis."}), 400
 
     return ejecutar_sparql_aux(query, endpoint, lang)
 
-#ruta para preguntas naturales
 @app.route("/preguntar", methods=["POST"])
 def procesar_pregunta():
     data = request.get_json()
@@ -54,20 +58,20 @@ def procesar_pregunta():
         return jsonify({"error": "No se recibió ninguna pregunta"}), 400
 
     try:
-        #usamos la API de OpenAI para transformar la pregunta en una consulta sparql
         sparql = convertir_pregunta_a_sparql(pregunta, endpoint, lang)
 
-        #validar la consulta generada
-        if not re.match(r"^(select|ask|construct)", sparql.strip(), re.IGNORECASE) or not validar_sparql(sparql):
-            return jsonify({"error": "La consulta SPARQL generada no es válida.", "consulta": sparql}), 500
+        if not re.search(r"\b(select|ask|construct)\b", sparql, re.IGNORECASE):
+            return jsonify({"error": "La consulta SPARQL generada no es válida (estructura incorrecta).", "consulta": sparql}), 500
 
+        #solo validamos sintaxis con rdflib si es local
+        if endpoint == "local" and not validar_sparql(sparql):
+            return jsonify({"error": "La consulta SPARQL no pasó validación local.", "consulta": sparql}), 500
 
         return ejecutar_sparql_aux(sparql, endpoint, lang)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-#función que ejecuta la consulta ya preparada, controlando el idioma
 def ejecutar_sparql_aux(query, endpoint, lang):
     if endpoint == "dbpedia":
         propiedades_idioma = [
@@ -75,15 +79,10 @@ def ejecutar_sparql_aux(query, endpoint, lang):
         ]
         query = inyectar_filtros_idioma(query, lang, propiedades_idioma)
 
-        #Para verificar la integridad de la consulta generada
-        print("Endpoint:", endpoint)
-        print("Idioma:", lang)
-        print("\n--- Consulta SPARQL enviada a DBpedia ---")
         print(f"\n[DBpedia] Consulta ({lang}):\n{query}\n")
-        print("------------------------------------------\n")
 
         response = requests.get(
-            "https://dbpedia.org/sparql",  # HTTPS recomendado
+            "https://dbpedia.org/sparql",
             params={"query": query, "format": "application/sparql-results+json"}
         )
 
@@ -96,14 +95,18 @@ def ejecutar_sparql_aux(query, endpoint, lang):
         return jsonify(response.json())
 
     elif endpoint == "local":
-        resultados = g.query(query)
-        respuesta = [{str(var): str(fila[var]) for var in fila.labels} for fila in resultados]
-        return jsonify({"resultados": respuesta, "total": len(respuesta)})
+        if g is None:
+            return jsonify({"error": "Ontología no cargada."}), 500
+        try:
+            resultados = g.query(query)
+            respuesta = [{str(var): str(fila[var]) for var in fila.labels} for fila in resultados]
+            return jsonify({"resultados": respuesta, "total": len(respuesta)})
+        except Exception as e:
+            return jsonify({"error": f"Error al ejecutar consulta local: {str(e)}"}), 500
 
     else:
         return jsonify({"error": f"Fuente desconocida: {endpoint}"}), 400
-    
-#funcion que usa la API de OpenAI para generar una consulta, desde una pregunta
+
 def convertir_pregunta_a_sparql(pregunta, endpoint, lang):
     modelo = "gpt-4-1106-preview"
     endpoint = endpoint.lower()
@@ -118,7 +121,7 @@ NO EXPLIQUES NADA. Devuelve SOLO la consulta SPARQL. No incluyas comentarios ni 
     user_prompt = f"Pregunta: {pregunta}\nIdioma: {lang}\nFuente: {endpoint}"
 
     try:
-        respuesta = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=modelo,
             messages=[
                 {"role": "system", "content": system_prompt.strip()},
@@ -127,33 +130,37 @@ NO EXPLIQUES NADA. Devuelve SOLO la consulta SPARQL. No incluyas comentarios ni 
             temperature=0.2,
             max_tokens=300
         )
-    except openai.error.OpenAIError as e:
+
+        texto = response.choices[0].message.content.strip()
+
+        # Limpiar formato innecesario (bloques markdown y etiquetas)
+        texto = re.sub(r"^```sparql", "", texto, flags=re.IGNORECASE).strip()
+        texto = re.sub(r"^sparql\s+", "", texto, flags=re.IGNORECASE).strip()
+        texto = re.sub(r"```$", "", texto, flags=re.IGNORECASE).strip()
+        texto = texto.replace("dbpedia-es:", "dbr:").replace("<http://es.dbpedia.org/resource/>", "<http://dbpedia.org/resource/>")
+
+
+        return texto
+
+    except Exception as e:
         raise Exception(f"Error API OpenAI: {str(e)}")
 
-    return respuesta['choices'][0]['message']['content'].strip()
-
-
-#buscamos si la consulta contiene esas propiedades.
 def extraer_vars_lingüisticas(consulta, propiedades):
     vars_detectadas = set()
     for prop in propiedades:
-        # busca patrones como: <algo> prop ?var .
-        patron = rf"{re.escape(prop)}\s+\?(\w+)"
+        patron = rf"{re.escape(prop)}\\s+\\?(\\w+)"
         matches = re.findall(patron, consulta)
         vars_detectadas.update(matches)
     return vars_detectadas
 
-#Insertar los filtros FILTER(langMatches(...)) para cada variable detectada
 def inyectar_filtros_idioma(consulta, lang, propiedades):
-    # No insertar si ya hay filtros de idioma
     if "lang(" in consulta:
         return consulta
 
     vars_linguisticas = extraer_vars_lingüisticas(consulta, propiedades)
     if not vars_linguisticas:
-        return consulta  # No hay variables a filtrar
+        return consulta
 
-    # Construimos bloque de filtros
     filtros = "".join(
         f"  FILTER(langMatches(lang(?{var}), \"{lang}\")) .\n" for var in vars_linguisticas
     )
