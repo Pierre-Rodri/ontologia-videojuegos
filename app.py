@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from rdflib import Graph
 from rdflib.plugins.sparql.parser import parseQuery
+from dotenv import load_dotenv
 import requests
 import re
 import openai
@@ -8,9 +9,10 @@ import os
 
 app = Flask(__name__)
 g = Graph()
+load_dotenv()
 
 #"OPENAI_API_KEY"se reemplaza por la key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("API_key")
 
 #cargar la ontología RDF local
 try:
@@ -56,8 +58,9 @@ def procesar_pregunta():
         sparql = convertir_pregunta_a_sparql(pregunta, endpoint, lang)
 
         #validar la consulta generada
-        if not sparql.lower().strip().startswith("select") or not validar_sparql(sparql):
-            return jsonify({"error": "La consulta SPARQL generada no es válida."}), 500
+        if not re.match(r"^(select|ask|construct)", sparql.strip(), re.IGNORECASE) or not validar_sparql(sparql):
+            return jsonify({"error": "La consulta SPARQL generada no es válida.", "consulta": sparql}), 500
+
 
         return ejecutar_sparql_aux(sparql, endpoint, lang)
 
@@ -76,8 +79,7 @@ def ejecutar_sparql_aux(query, endpoint, lang):
         print("Endpoint:", endpoint)
         print("Idioma:", lang)
         print("\n--- Consulta SPARQL enviada a DBpedia ---")
-        print(f"Idioma solicitado: {lang}")
-        print(query)
+        print(f"\n[DBpedia] Consulta ({lang}):\n{query}\n")
         print("------------------------------------------\n")
 
         response = requests.get(
@@ -103,12 +105,14 @@ def ejecutar_sparql_aux(query, endpoint, lang):
     
 #funcion que usa la API de OpenAI para generar una consulta, desde una pregunta
 def convertir_pregunta_a_sparql(pregunta, endpoint, lang):
-    modelo = "gpt-4o-mini"
+    modelo = "gpt-4-1106-preview"
+    endpoint = endpoint.lower()
     prefijo = "DBpedia" if endpoint == "dbpedia" else "la ontología local RDF"
 
     system_prompt = f"""
-Eres un asistente experto en ontologías y SPARQL. Tu tarea es convertir preguntas en lenguaje natural en consultas SPARQL.
-Utiliza los prefijos correctos para {prefijo}. NO expliques nada. Devuelve SOLO la consulta SPARQL.
+Eres un asistente experto en SPARQL. Tu tarea es convertir preguntas en lenguaje natural en consultas SPARQL.
+Utiliza los prefijos correctos para {prefijo}. 
+NO EXPLIQUES NADA. Devuelve SOLO la consulta SPARQL. No incluyas comentarios ni texto adicional.
 """
 
     user_prompt = f"Pregunta: {pregunta}\nIdioma: {lang}\nFuente: {endpoint}"
@@ -117,14 +121,16 @@ Utiliza los prefijos correctos para {prefijo}. NO expliques nada. Devuelve SOLO 
         respuesta = openai.ChatCompletion.create(
             model=modelo,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
+                {"role": "system", "content": system_prompt.strip()},
+                {"role": "user", "content": user_prompt.strip()}
+            ],
+            temperature=0.2,
+            max_tokens=300
         )
     except openai.error.OpenAIError as e:
         raise Exception(f"Error API OpenAI: {str(e)}")
-    contenido = respuesta['choices'][0]['message']['content']
-    return contenido.strip()
+
+    return respuesta['choices'][0]['message']['content'].strip()
 
 
 #buscamos si la consulta contiene esas propiedades.
