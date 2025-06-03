@@ -36,3 +36,11 @@ Se implementa una API y una interfaz web usando Flask, junto con herramientas de
    
 
 En la seccion de la api key se debe poner una que tenga un plan de suscripción de openia para que este funcione 
+
+## Importante - API key OpenAI
+Crea un archivo .env en la raiz, añadelo este archivo al .gitignore y copia el sigueinte contenido:
+
+API_key=la_clave
+
+Y reemplaza 'la_clave' con la API key.
+Es importante que este archivo .env no se suba al repositorio por ningun motivo, solo manejarlo de manera local.

@@ -12,14 +12,14 @@ app = Flask(__name__)
 g = Graph()
 load_dotenv()
 
-#configuración de API
+#configuracion de API
 openai.api_key = os.getenv("API_key")
 client = openai.OpenAI(api_key=openai.api_key)
 
 if not openai.api_key:
     raise ValueError("No se encontró la clave API de OpenAI. Verifica tu archivo .env")
 
-#cargar ontología local
+#cargar ontologia local
 try:
     g.parse("ontologia/oficial.rdf", format="xml")
     print("Ontología cargada correctamente.")
@@ -158,7 +158,7 @@ Reglas:
 
         texto = response.choices[0].message.content.strip()
 
-        # Limpiar formato innecesario (bloques markdown y etiquetas)
+        #limpiamos el formato innecesario (bloques markdown y etiquetas)
         texto = re.sub(r"^```sparql", "", texto, flags=re.IGNORECASE).strip()
         texto = re.sub(r"^sparql\s+", "", texto, flags=re.IGNORECASE).strip()
         texto = re.sub(r"```$", "", texto, flags=re.IGNORECASE).strip()
