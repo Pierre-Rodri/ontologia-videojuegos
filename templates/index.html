@@ -179,6 +179,7 @@
       <select id="fuenteNLP">
         <option value="dbpedia">DBpedia</option>
         <option value="local">Ontología Local</option>
+        <option value="both">Ambos</option>
       </select>
 
       <button type="submit" id="btnPregunta">Buscar</button>
@@ -305,45 +306,11 @@ LIMIT 10
       loader.style.display = "block";
       resultBox.innerHTML = "";
 
-      let query = "";
-
-      if (endpoint === "dbpedia") {
-        query = `
-          PREFIX dbo: <http://dbpedia.org/ontology/>
-          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-          SELECT ?game ?title ?description
-          WHERE {
-            ?game a dbo:VideoGame ;
-                  rdfs:label ?title ;
-                  rdfs:comment ?description .
-            FILTER (
-              CONTAINS(LCASE(?title), LCASE("${keyword}")) ||
-              CONTAINS(LCASE(?description), LCASE("${keyword}"))
-            )
-          }
-          LIMIT 20
-        `;
-      } else {
-        query = `
-          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-          PREFIX : <http://www.semanticweb.org/juaco/ontologies/2024/0/videojuegos#>
-
-          SELECT ?videojuego ?label
-          WHERE {
-            ?videojuego a :Videojuego ;
-                        rdfs:label ?label .
-            FILTER (CONTAINS(LCASE(?label), LCASE("${keyword}")))
-          }
-          LIMIT 20
-        `;
-      }
-
       try {
-        const res = await fetch("/sparql", {
+        const res = await fetch("/keyword", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, endpoint, lang: idioma })
+          body: JSON.stringify({ keyword, endpoint, lang: idioma })  // ✅ CORRECTO
         });
 
         const data = await res.json();
@@ -354,6 +321,7 @@ LIMIT 10
         loader.style.display = "none";
       }
     });
+
 
     document.getElementById("nlpForm").addEventListener("submit", async (e) => {
       e.preventDefault();

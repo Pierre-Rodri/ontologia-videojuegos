@@ -64,13 +64,72 @@ def procesar_pregunta():
             return jsonify({"error": "La consulta SPARQL generada no es válida (estructura incorrecta).", "consulta": sparql}), 500
 
         #solo validamos sintaxis con rdflib si es local
-        if endpoint == "local" and not validar_sparql(sparql):
+        if endpoint == "local" and not validar_prefijos_obligatorios(sparql):
             return jsonify({"error": "La consulta SPARQL no pasó validación local.", "consulta": sparql}), 500
 
         return ejecutar_sparql_aux(sparql, endpoint, lang)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/keyword", methods=["POST"])
+def buscar_por_keyword():
+    data = request.get_json()
+    keyword = data.get("keyword", "").strip()
+    endpoint = data.get("endpoint", "local")
+    lang = data.get("lang", "es")
+    
+    print("Datos recibidos en /keyword:", data)
+
+    if not keyword:
+        return jsonify({"error": "No se proporcionó palabra clave."}), 400
+
+    keyword = limpiar_entrada(keyword)
+
+    if endpoint == "dbpedia":
+        query = f"""
+        PREFIX dbo: <http://dbpedia.org/ontology/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+        SELECT ?game ?title ?description
+        WHERE {{
+          ?game a dbo:VideoGame ;
+                rdfs:label ?title ;
+                rdfs:comment ?description .
+          FILTER (
+            CONTAINS(LCASE(?title), LCASE("{keyword}")) ||
+            CONTAINS(LCASE(?description), LCASE("{keyword}"))
+          )
+          FILTER(lang(?title) = "{lang}")
+          FILTER(lang(?description) = "{lang}")
+        }}
+        LIMIT 20
+        """
+    else:
+        query = f"""
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX : <http://www.semanticweb.org/juaco/ontologies/2024/0/videojuegos#>
+
+        SELECT ?videojuego ?label
+        WHERE {{
+          ?videojuego a :Videojuego ;
+                      rdfs:label ?label .
+          FILTER (CONTAINS(LCASE(?label), LCASE("{keyword}")))
+          FILTER(lang(?label) = "{lang}")
+        }}
+        LIMIT 20
+        """
+
+    return ejecutar_sparql_aux(query, endpoint, lang)
+
+
+def limpiar_entrada(texto):
+    return re.sub(r'[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s\-_:]', '', texto)
+
+def validar_prefijos_obligatorios(query):
+    prefijos_obligatorios = ["PREFIX dbo:", "PREFIX dbr:", "PREFIX rdfs:"]
+    return all(p in query.lower() for p in prefijos_obligatorios)
+
 
 def ejecutar_sparql_aux(query, endpoint, lang):
     if endpoint == "dbpedia":
@@ -124,7 +183,7 @@ def ejecutar_sparql_aux(query, endpoint, lang):
             return jsonify({"resultados": respuesta, "total": len(respuesta)})
         except Exception as e:
             return jsonify({"error": f"Error al ejecutar consulta local: {str(e)}"}), 500
-
+    
     else:
         return jsonify({"error": f"Fuente desconocida: {endpoint}"}), 400
 
