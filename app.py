@@ -67,6 +67,20 @@ def procesar_pregunta():
         if endpoint == "local" and not validar_prefijos_obligatorios(sparql):
             return jsonify({"error": "La consulta SPARQL no pasó validación local.", "consulta": sparql}), 500
 
+        if endpoint == "both":
+            local_response = ejecutar_sparql_aux(sparql, "local", lang)
+            dbpedia_response = ejecutar_sparql_aux(sparql, "dbpedia", lang)
+
+            local_results = local_response.get("resultados", []) if isinstance(local_response, dict) else []
+            dbpedia_results = dbpedia_response.get("resultados", []) if isinstance(dbpedia_response, dict) else []
+
+            combined_results = local_results + dbpedia_results
+
+            return jsonify({
+                "resultados": combined_results,
+                "total": len(combined_results)
+            })
+
         return ejecutar_sparql_aux(sparql, endpoint, lang)
 
     except Exception as e:
@@ -138,7 +152,7 @@ def ejecutar_sparql_aux(query, endpoint, lang):
         ]
         query = inyectar_filtros_idioma(query, lang, propiedades_idioma)
 
-        print(f"\n[DBpedia] Consulta ({lang}):\n{query}\n")
+        print(f"\nDBpedia Consulta ({lang}):\n{query}\n")
 
         response = requests.get(
             "https://dbpedia.org/sparql",
@@ -153,6 +167,10 @@ def ejecutar_sparql_aux(query, endpoint, lang):
 
         json_result = response.json()
         bindings = json_result.get("results", {}).get("bindings", [])
+
+        if not bindings:
+            print(f"DBpedia: No se encontraron resultados en DBpedia.")
+
         procesados = []
 
         for fila in bindings:
